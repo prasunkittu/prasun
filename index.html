@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Gantt Chart with Waiting Time</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        canvas {
+            max-width: 600px;
+            margin: 20px auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Simple Gantt Chart for CPU Scheduling</h1>
+<div>
+    <label for="numProcesses">Enter number of processes:</label>
+    <input type="number" id="numProcesses" min="1" required>
+    <button onclick="getProcessData()">Submit</button>
+</div>
+
+<div id="processInputs"></div>
+<button id="calculateBtn" style="display:none;" onclick="drawGanttChart()">Draw Gantt Chart</button>
+
+<h2>Results</h2>
+<table id="resultsTable" style="display:none;">
+    <thead>
+        <tr>
+            <th>PID</th>
+            <th>Arrival</th>
+            <th>Burst</th>
+            <th>Completion</th>
+            <th>Turnaround</th>
+            <th>Waiting</th>
+        </tr>
+    </thead>
+    <tbody id="resultsBody"></tbody>
+</table>
+
+<canvas id="ganttChart" style="display:none;"></canvas>
+
+<script>
+    function getProcessData() {
+        const numProcesses = document.getElementById('numProcesses').value;
+        const processInputs = document.getElementById('processInputs');
+        processInputs.innerHTML = '';
+
+        for (let i = 0; i < numProcesses; i++) {
+            processInputs.innerHTML += `
+                <div>
+                    <label>Process ${i + 1} Arrival Time:</label>
+                    <input type="number" id="arrival${i}" required>
+                    <label>Process ${i + 1} Burst Time:</label>
+                    <input type="number" id="burst${i}" required>
+                </div>
+            `;
+        }
+        document.getElementById('calculateBtn').style.display = 'inline';
+    }
+
+    function drawGanttChart() {
+        const numProcesses = document.getElementById('numProcesses').value;
+        const processes = [];
+
+        for (let i = 0; i < numProcesses; i++) {
+            const arrival = parseInt(document.getElementById(`arrival${i}`).value);
+            const burst = parseInt(document.getElementById(`burst${i}`).value);
+            processes.push({ pid: `P${i + 1}`, arrival, burst });
+        }
+
+        // Calculate completion, turnaround, and waiting times
+        let currentTime = 0;
+        const results = [];
+        processes.forEach(process => {
+            const start = Math.max(currentTime, process.arrival);
+            const end = start + process.burst;
+            const turnaround = end - process.arrival;
+            const waiting = turnaround - process.burst;
+
+            results.push({
+                pid: process.pid,
+                arrival: process.arrival,
+                burst: process.burst,
+                completion: end,
+                turnaround: turnaround,
+                waiting: waiting
+            });
+
+            currentTime = end;
+        });
+
+        // Display results in the table
+        const resultsBody = document.getElementById('resultsBody');
+        resultsBody.innerHTML = '';
+        results.forEach(result => {
+            resultsBody.innerHTML += `
+                <tr>
+                    <td>${result.pid}</td>
+                    <td>${result.arrival}</td>
+                    <td>${result.burst}</td>
+                    <td>${result.completion}</td>
+                    <td>${result.turnaround}</td>
+                    <td>${result.waiting}</td>
+                </tr>
+            `;
+        });
+        document.getElementById('resultsTable').style.display = 'table';
+
+        // Prepare data for Chart.js
+        const ctx = document.getElementById('ganttChart').getContext('2d');
+        const labels = results.map(r => r.pid);
+        const data = {
+            labels: labels,
+            datasets: [{
+                label: 'Process Execution',
+                data: results.map((r, index) => ({
+                    x: r.completion,
+                    y: index,
+                    width: r.burst
+                })),
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                borderColor: 'rgba(75, 192, 192, 1)',
+                borderWidth: 1
+            }]
+        };
+
+        const config = {
+            type: 'bar',
+            data: data,
+            options: {
+                indexAxis: 'y',
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Time'
+                        }
+                    },
+                    y: {
+                        title: {
+                            display: true,
+                            text: 'Processes'
+                        },
+                        ticks: {
+                            callback: function(value, index, values) {
+                                return labels[index]; // Show process IDs on the y-axis
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        document.getElementById('ganttChart').style.display = 'block';
+        new Chart(ctx, config);
+    }
+</script>
+
+</body>
+</html>
